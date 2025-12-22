@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPR VR Explorer - sample_pipe_1.csv</title>
+    
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+        }
+    }
+    </script>
+    
+    <style>
+        body { margin: 0; padding: 0; background: #1a1a1a; color: white; font-family: Arial, sans-serif; overflow: hidden; }
+        #container { position: relative; width: 100vw; height: 100vh; }
+        
+        #info {
+            position: absolute; top: 20px; left: 20px;
+            background: rgba(0,0,0,0.9); padding: 20px;
+            border-radius: 10px; z-index: 100;
+            max-width: 400px; max-height: 90vh; overflow-y: auto;
+        }
+        
+        #compass-ui {
+            position: absolute; top: 80px; right: 20px;
+            width: 120px; height: 120px; z-index: 100;
+            pointer-events: none;
+        }
+        
+        #vr-button {
+            position: absolute; bottom: 20px; left: 50%;
+            transform: translateX(-50%); padding: 15px 30px;
+            font-size: 18px; background: #4CAF50; color: white;
+            border: none; border-radius: 10px; cursor: pointer; z-index: 100;
+        }
+        #vr-button:hover { background: #45a049; }
+        #vr-button:disabled { background: #666; cursor: not-allowed; }
+        
+        .slider-container { margin: 12px 0; }
+        .slider-label { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 13px; }
+        input[type="range"] { width: 100%; }
+        .toggle-container { display: flex; align-items: center; margin: 8px 0; font-size: 13px; }
+        .toggle-container input { margin-right: 10px; }
+        
+        /* NEW STYLES FOR CHECKLIST */
+        #layer-list { 
+            max-height: 150px; 
+            overflow-y: auto; 
+            background: rgba(255,255,255,0.05);
+            border-radius: 5px;
+            padding: 5px;
+            margin-top: 5px; 
+        }
+        .layer-item {
+            display: flex;
+            align-items: center;
+            padding: 4px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 11px;
+        }
+        .layer-item:hover { background: rgba(255,255,255,0.1); }
+        .layer-item input { margin-right: 8px; }
+        .layer-label { cursor: pointer; flex: 1; display: flex; align-items: center; }
+        .color-swatch {
+            display: inline-block; width: 12px; height: 12px;
+            border-radius: 2px; margin-right: 8px; border: 1px solid #555;
+        }
+        .btn-small {
+            background: #444; color: white; border: 1px solid #666;
+            padding: 2px 8px; font-size: 10px; cursor: pointer; border-radius: 3px;
+            margin-right: 5px;
+        }
+        .btn-small:hover { background: #555; }
+        
+        .section-header { background: rgba(255,255,255,0.1); padding: 8px; margin: 10px -10px; font-weight: bold; font-size: 13px; }
+        
+        #loading {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 1000;
+        }
+        #loading-text { font-size: 24px; margin-bottom: 20px; }
+        #loading-progress { width: 300px; height: 20px; background: #333; border-radius: 10px; overflow: hidden; }
+        #loading-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #4CAF50, #8BC34A); transition: width 0.3s; }
+        #loading-details { margin-top: 10px; font-size: 14px; color: #aaa; }
+        
+        #debug { position: absolute; bottom: 80px; left: 20px; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 5px; font-size: 11px; font-family: monospace; z-index: 100; }
+        #data-info { background: rgba(0,100,200,0.2); padding: 8px; border-radius: 5px; margin-bottom: 10px; font-size: 11px; }
+        .control-group { background: rgba(255,255,255,0.05); padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .control-group-title { font-weight: bold; margin-bottom: 8px; color: #4CAF50; font-size: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .file-info { font-size: 10px; color: #aaa; margin-top: 5px; border-top: 1px solid #333; padding-top: 5px; }
+        
+        /* Palette info */
+        .palette-info {
+            background: rgba(255,255,255,0.05);
+            padding: 5px;
+            border-radius: 3px;
+            margin-top: 5px;
+            font-size: 10px;
+            color: #aaa;
+        }
+        
+        /* Legend Styles */
+        #legend {
+            position: absolute; bottom: 20px; right: 20px;
+            background: rgba(0,0,0,0.8); padding: 15px;
+            border-radius: 8px; z-index: 100;
+            font-size: 12px;
+            min-width: 150px;
+        }
+        .legend-title { 
+            font-weight: bold; margin-bottom: 8px; 
+            border-bottom: 1px solid #555; padding-bottom: 5px;
+            color: #ddd; text-align: center;
+        }
+        .legend-item { display: flex; align-items: center; margin-bottom: 4px; }
+        .legend-color { width: 14px; height: 14px; margin-right: 8px; border: 1px solid #555; border-radius: 2px; }
+        .legend-label { color: #ccc; }
+    </style>
+</head>
+<body>
+    <div style="text-align: center; margin-bottom: 10px;">
+        <img src="/static/logo.jpeg" alt="GPR VR Viewer Logo" style="max-width: 350px; height: 70px; float:right">
+    </div>
+    
+    <div id="container"></div>
+    
+    <div id="compass-ui">
+        <canvas id="compassCanvas" width="120" height="120"></canvas>
+    </div>
+    
+    <div id="loading">
+        <div id="loading-text">Loading GPR Data...</div>
+        <div id="loading-progress"><div id="loading-bar"></div></div>
+        <div id="loading-details">Preparing 12,110 points + surfaces...</div>
+    </div>
+    
+    <div id="info">
+        <h3 style="margin-top: 0;">GPR VR Explorer</h3>
+        
+        <div id="data-info">
+            <strong>File:</strong> sample_pipe_1.csv<br>
+            <strong>Dimensions:</strong> 18.24m x 16.80m x 3.96m<br>
+            <strong>Color Palette:</strong> Viridis<br>
+        </div>
+        
+        <div class="control-group">
+            <div class="control-group-title">
+                POINT CLOUD
+                <div>
+                    <button class="btn-small" onclick="toggleAllLayers(true)">All</button>
+                    <button class="btn-small" onclick="toggleAllLayers(false)">None</button>
+                </div>
+            </div>
+            <div class="toggle-container">
+                <input type="checkbox" id="showPoints" checked>
+                <label for="showPoints">Show GPR Model</label>
+            </div>
+            
+            <div class="slider-container">
+                <div class="slider-label"><span>Point Size:</span><span id="sizeValue">0.015</span></div>
+                <input type="range" id="sizeSlider" min="0.002" max="0.05" step="0.002" value="0.015">
+            </div>
+            
+            <!-- REPLACED SLIDER WITH CHECKLIST -->
+            <div id="layer-list">
+                
+            <div class="layer-item">
+                <input type="checkbox" id="layer_cb_0" checked onchange="toggleLayer(0, this.checked)">
+                <label for="layer_cb_0" class="layer-label">
+                    <span class="color-swatch" style="background:#440154"></span>
+                    L1: 25-28
+                </label>
+            </div>
+            <div class="layer-item">
+                <input type="checkbox" id="layer_cb_1" checked onchange="toggleLayer(1, this.checked)">
+                <label for="layer_cb_1" class="layer-label">
+                    <span class="color-swatch" style="background:#482878"></span>
+                    L2: 28-31
+                </label>
+            </div>
+            <div class="layer-item">
+                <input type="checkbox" id="layer_cb_2" checked onchange="toggleLayer(2, this.checked)">
+                <label for="layer_cb_2" class="layer-label">
+                    <span class="color-swatch" style="background:#3e4a89"></span>
+                    L3: 31-36
+                </label>
+            </div>
+            <div class="layer-item">
+                <input type="checkbox" id="layer_cb_3" checked onchange="toggleLayer(3, this.checked)">
+                <label for="layer_cb_3" class="layer-label">
+                    <span class="color-swatch" style="background:#31688e"></span>
+                    L4: 36-44
+                </label>
+            </div>
+            <div class="layer-item">
+                <input type="checkbox" id="layer_cb_4" checked onchange="toggleLayer(4, this.checked)">
+                <label for="layer_cb_4" class="layer-label">
+                    <span class="color-swatch" style="background:#26828e"></span>
+                    L5: 44-113
+                </label>
+            </div>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <div class="control-group-title">SURFACES</div>
+            <div class="toggle-container">
+                <input type="checkbox" id="showSurface">
+                <label for="showSurface">Show Amplitude Surface</label>
+            </div>
+            <div class="slider-container">
+                <div class="slider-label"><span>Surface Opacity:</span><span id="surfaceOpacityValue">0.6</span></div>
+                <input type="range" id="surfaceOpacitySlider" min="0.1" max="1" step="0.1" value="0.6">
+            </div>
+            <div class="toggle-container">
+                <input type="checkbox" id="showSlices">
+                <label for="showSlices">Show Depth Slices (5)</label>
+            </div>
+            <div class="slider-container">
+                <div class="slider-label"><span>Slice Opacity:</span><span id="sliceOpacityValue">0.5</span></div>
+                <input type="range" id="sliceOpacitySlider" min="0.1" max="1" step="0.1" value="0.5">
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <div class="control-group-title">VIEW</div>
+            <div class="slider-container">
+                <div class="slider-label"><span>Scale:</span><span id="scaleValue">0.1</span></div>
+                <input type="range" id="scaleSlider" min="0.1" max="5" step="0.1" value="0.1">
+            </div>
+            <div class="toggle-container">
+                <input type="checkbox" id="showGround">
+                <label for="showGround">Show Ground Image</label>
+            </div>
+            <div class="toggle-container">
+                <input type="checkbox" id="showAxes" checked>
+                <label for="showAxes">Show Data Axes</label>
+            </div>
+            <div class="toggle-container">
+                <input type="checkbox" id="showAxes" checked>
+                <label for="showAxes">Show Data Axes</label>
+            </div>
+            <div class="toggle-container">
+                <button onclick="resetPosition()">Reset Position to Floor</button>
+            </div>
+            <div class="toggle-container" id="pipeToggleContainer" style="display: none; margin-top:10px; border-top:1px solid #555; padding-top:10px;">
+                <input type="checkbox" id="show3DPipe">
+                <label for="show3DPipe">Show 3D Pipe Model</label>
+            </div>
+            <div class="slider-container" id="pipeScaleContainer" style="display: none;">
+                <div class="slider-label"><span>Pipe Scale:</span><span id="pipeScaleValue">1.0</span></div>
+                <input type="range" id="pipeScaleSlider" min="0.1" max="10" step="0.1" value="1.0">
+                
+                <div class="slider-label"><span>Pipe Pos X:</span><span id="pipePosXValue">0</span></div>
+                <input type="range" id="pipePosXSlider" min="-50" max="50" step="0.5" value="0">
+                
+                <div class="slider-label"><span>Pipe Pos Y:</span><span id="pipePosYSliderValue">0</span></div>
+                <input type="range" id="pipePosYSlider" min="-50" max="50" step="0.5" value="0">
+                
+                <div class="slider-label"><span>Pipe Pos Z:</span><span id="pipePosZSliderValue">0</span></div>
+                <input type="range" id="pipePosZSlider" min="-20" max="20" step="0.5" value="0">
+                
+                <div class="slider-label"><span>Pipe Rot Z:</span><span id="pipeRotZSliderValue">0</span></div>
+                <input type="range" id="pipeRotZSlider" min="0" max="360" step="1" value="0">
+            </div>
+        </div>
+        
+        <div class="control-group" style="font-size: 10px;">
+            <div class="control-group-title">VR INSTRUCTIONS</div>
+            <strong>GRIP BUTTON:</strong> Grab and rotate the model (6-DoF).<br>
+            <strong>TWO HANDS:</strong> Pull apart to zoom/scale.<br>
+            <strong>LEFT TRIGGER:</strong> Cycle Layers (All -> Single -> None) | <strong>RIGHT TRIGGER:</strong> Toggle Pipe Model.
+        </div>
+        
+        <div class="file-info">
+            Processed on: 2025-12-19 12:42:25<br>
+            Color Palette: Viridis<br>
+            <a href="/" style="color: #4CAF50;">← Process another file</a>
+        </div>
+    </div>
+    
+    <div id="debug">Ready</div>
+    
+    <div id="legend">
+        <div class="legend-title">Amplitude (Signal Strength)</div>
+        
+        <div style="margin-bottom:10px;">
+            <div style="height:15px; width:100%; background:linear-gradient(to right, rgb(68,1,84), rgb(72,40,120), rgb(62,74,137), rgb(49,104,142), rgb(38,130,142), rgb(31,158,137), rgb(53,183,121), rgb(110,206,88), rgb(181,222,43)); border-radius:3px; border:1px solid #555;"></div>
+            <div style="display:flex; justify-content:space-between; font-size:10px; color:#ccc; margin-top:2px;">
+                <span>25</span>
+                <span>113</span>
+            </div>
+        </div>
+        
+            <div class="legend-item">
+                <span class="legend-color" style="background:#440154"></span>
+                <span class="legend-label">25 - 28</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background:#482878"></span>
+                <span class="legend-label">28 - 31</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background:#3e4a89"></span>
+                <span class="legend-label">31 - 36</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background:#31688e"></span>
+                <span class="legend-label">36 - 44</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background:#26828e"></span>
+                <span class="legend-label">44 - 113</span>
+            </div>
+    </div>
+    
+    <button id="vr-button" disabled>Loading...</button>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
+        import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
+        import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+
+        // ... (Keep existing Compass drawing function) ...
+        function drawCompassOnContext(ctx, angle, size) {
+            const cx = size/2, cy = size/2, r = size * 0.42;
+            ctx.clearRect(0, 0, size, size);
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(angle);
+            ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fillStyle = 'rgba(60, 60, 60, 0.9)'; ctx.fill();
+            ctx.lineWidth = size * 0.04; ctx.strokeStyle = '#888'; ctx.stroke();
+            ctx.beginPath(); ctx.arc(0, 0, r * 0.9, 0, Math.PI * 2); ctx.fillStyle = '#222'; ctx.fill();
+            const needleLen = r * 0.75; const needleWide = r * 0.15;
+            ctx.beginPath(); ctx.moveTo(0, -needleLen); ctx.lineTo(needleWide, 0); ctx.lineTo(-needleWide, 0); ctx.closePath(); ctx.fillStyle = '#FF3333'; ctx.fill();
+            ctx.beginPath(); ctx.moveTo(0, needleLen); ctx.lineTo(needleWide, 0); ctx.lineTo(-needleWide, 0); ctx.closePath(); ctx.fillStyle = '#EEEEEE'; ctx.fill();
+            ctx.save(); ctx.translate(0, -r + (size * 0.1)); ctx.rotate(0);
+            ctx.fillStyle = 'white'; ctx.font = 'bold ' + (size * 0.2) + 'px Arial';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.shadowColor="black"; ctx.shadowBlur=4; ctx.fillText('N', 0, -5);
+            ctx.restore();
+            ctx.beginPath(); ctx.arc(0, 0, size * 0.05, 0, Math.PI * 2); ctx.fillStyle = '#GOLD'; ctx.fill();
+            ctx.restore();
+            ctx.save(); ctx.translate(cx, cy); ctx.strokeStyle = "rgba(255,255,255,0.3)"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(0, -r-5); ctx.stroke(); ctx.restore();
+        }
+
+        const compassCanvas = document.getElementById('compassCanvas');
+        const compassCtx = compassCanvas.getContext('2d');
+        drawCompassOnContext(compassCtx, 0, 120);
+
+        const debugEl = document.getElementById('debug');
+        const loadingBar = document.getElementById('loading-bar');
+        const loadingDetails = document.getElementById('loading-details');
+        
+        function debug(msg) { debugEl.textContent = msg; console.log(msg); }
+        function updateLoadingProgress(pct, txt) {
+            loadingBar.style.width = pct + '%';
+            if (txt) loadingDetails.textContent = txt;
+        }
+
+        // Scene
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a2e);
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
+        camera.position.set(0, 1.7, 2);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.xr.enabled = true;
+        renderer.shadowMap.enabled = true;
+        document.getElementById('container').appendChild(renderer.domElement);
+        
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.target.set(0, 0, 0);
+        controls.maxPolarAngle = Math.PI; 
+        
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 5);
+        dirLight.castShadow = true;
+        scene.add(dirLight);
+        
+        // --- GROUND ---
+        const texLoader = new THREE.TextureLoader();
+        const groundGroup = new THREE.Group();
+        scene.add(groundGroup);
+
+        texLoader.load(
+            '/static/ground.jpg',
+            function (texture) {
+                // compute a ground size from data extents (use larger of x/y and add margin)
+                const groundSize = 27.36;
+                const geometry = new THREE.PlaneGeometry(groundSize, groundSize);
+                const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide, color: 0xffffff });
+                const plane = new THREE.Mesh(geometry, material);
+                plane.rotation.x = -Math.PI / 2;
+                plane.position.y = -0.05;
+                groundGroup.add(plane);
+                groundGroup.visible = false; // Hidden by default
+            },
+            undefined,
+            function (err) {
+                const grid = new THREE.GridHelper(50, 50, 0x666666, 0x444444);
+                groundGroup.add(grid);
+            }
+        );
+        
+        // --- DATA CONTAINER ---
+        const mainGroup = new THREE.Group();
+        scene.add(mainGroup);
+        mainGroup.position.set(0, 0.05, 0); 
+        mainGroup.rotation.x = -Math.PI / 2;
+        mainGroup.scale.setScalar(0.1); // Initial Zoom 0.1
+        
+        const initialTransform = {
+            position: mainGroup.position.clone(),
+            rotation: mainGroup.rotation.clone(),
+            scale: mainGroup.scale.clone()
+        };
+        
+        window.resetPosition = function() {
+            mainGroup.position.copy(initialTransform.position);
+            mainGroup.rotation.copy(initialTransform.rotation);
+            mainGroup.scale.copy(initialTransform.scale);
+            document.getElementById('scaleSlider').value = 0.1;
+            document.getElementById('scaleValue').textContent = "0.1";
+            controls.reset();
+        };
+        
+        const pointCloudGroup = new THREE.Group();
+        mainGroup.add(pointCloudGroup);
+        const surfaceGroup = new THREE.Group();
+        surfaceGroup.visible = false;  // Hidden by default
+        mainGroup.add(surfaceGroup);
+        const sliceGroup = new THREE.Group();
+        sliceGroup.visible = false;    // Hidden by default
+        mainGroup.add(sliceGroup);
+        const axesGroup = new THREE.Group();
+        mainGroup.add(axesGroup);
+        
+        // Settings
+        // Initialize layers array - This needs to match the indices in the Python loop
+        // Settings
+        const layers = []; // Initialize as empty, loaders will fill specific indices 
+        const surfaces = [];
+        const slices = [];
+        let pointSize = 0.015;
+        let surfaceOpacity = 0.6;
+        let sliceOpacity = 0.5;
+
+        // ... (Keep existing Axis Generator) ...
+        function createTextSprite(text, color, size=40) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            // Increased canvas size to prevent Clipping
+            canvas.width = 512; canvas.height = 256;
+            ctx.fillStyle = color; 
+            
+            // User settings
+            const fontSize = size * 1.0;
+            const fontFamily = "Arial";
+            
+            // Scale font size generally for the larger canvas
+            ctx.font = "Bold " + (fontSize * 2) + "px " + fontFamily; 
+            ctx.textAlign = "center"; 
+            ctx.textBaseline = "middle"; 
+            ctx.fillText(text, 256, 128);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            const material = new THREE.SpriteMaterial({ map: texture, depthTest: false });
+            const sprite = new THREE.Sprite(material);
+            // Scale remains similar to world space size from before
+            sprite.scale.set(1, 0.5, 1);
+            return sprite;
+        }
+
+        function buildDataAxes() {
+            const xLen = 18.240000000000002, yLen = 16.799999999999997, zLen = 3.96;
+            // Data Coordinates (inside mainGroup): X=East/West, Y=North/South, Z=Depth
+            const xMin = -xLen / 2, yMin = -yLen / 2, zMin = -zLen / 2;
+            const xMax = xLen / 2, yMax = yLen / 2, zMax = zLen / 2;
+
+            // --- 1. RESTORE ORIGINAL AXES (Red/Green/Blue Lines) ---
+            // X Axis (Red)
+            const xMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
+            const xPoints = [new THREE.Vector3(xMin, yMin, zMin), new THREE.Vector3(xMax, yMin, zMin)];
+            axesGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(xPoints), xMat));
+            
+            // Y Axis (Green)
+            const yMat = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 2 });
+            const yPoints = [new THREE.Vector3(xMin, yMin, zMin), new THREE.Vector3(xMin, yMax, zMin)];
+            axesGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(yPoints), yMat));
+            
+            // Z Axis (Blue)
+            const zMat = new THREE.LineBasicMaterial({ color: 0x0088ff, linewidth: 2 });
+            const zPoints = [new THREE.Vector3(xMin, yMin, zMin), new THREE.Vector3(xMin, yMin, zMax)];
+            axesGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(zPoints), zMat));
+
+            // --- 2. RESTORE DIMENSION LABELS ---
+            const xLabel = createTextSprite("X: " + xLen.toFixed(1) + "m", "#ff5555", 35); 
+            xLabel.position.set(0, yMin - 0.2, zMin); 
+            axesGroup.add(xLabel);
+            
+            const yLabel = createTextSprite("Y: " + yLen.toFixed(1) + "m", "#55ff55", 35); 
+            yLabel.position.set(xMin - 0.3, 0, zMin); 
+            axesGroup.add(yLabel);
+
+            const zLabel = createTextSprite("Z: " + zLen.toFixed(1) + "m", "#5555ff", 35); 
+            zLabel.position.set(xMin, yMin - 0.2, 0); 
+            axesGroup.add(zLabel);
+
+            // --- 3. SURVEY BOX (Wireframe) ---
+            const boxGeo = new THREE.BoxGeometry(xLen, yLen, zLen);
+            const boxEdges = new THREE.EdgesGeometry(boxGeo);
+            const boxLine = new THREE.LineSegments(boxEdges, new THREE.LineBasicMaterial({ color: 0xffff00, opacity: 0.3, transparent: true }));
+            axesGroup.add(boxLine);
+            
+            // --- 4. NEW DIRECTION LABELS ---
+            // X Axis Directions
+            const lblWest = createTextSprite("← West", "#cccccc", 30);
+            lblWest.position.set(xMin - 0.5, 0, 0); 
+            axesGroup.add(lblWest);
+            
+            const lblEast = createTextSprite("East →", "#cccccc", 30);
+            lblEast.position.set(xMax + 0.5, 0, 0); 
+            axesGroup.add(lblEast);
+            
+            // Y Axis Directions (North/South)
+            const lblNorth = createTextSprite("↑ North", "#cccccc", 30);
+            lblNorth.position.set(0, yMax + 0.5, 0); 
+            axesGroup.add(lblNorth);
+            
+            const lblSouth = createTextSprite("↓ South", "#cccccc", 30);
+            lblSouth.position.set(0, yMin - 0.5, 0); 
+            axesGroup.add(lblSouth);
+            
+            // Z Axis Directions (Depth)
+            // zMax is Surface (approx 0), zMin is Deep (approx -5)
+            const lblSurf = createTextSprite("Surface", "#ccffcc", 30);
+            lblSurf.position.set(0, 0, zMax + 0.2);
+            axesGroup.add(lblSurf);
+            
+            const lblDepth = createTextSprite("Depth", "#ccffcc", 30);
+            lblDepth.position.set(0, 0, zMin - 0.2);
+            axesGroup.add(lblDepth);
+        }
+        buildDataAxes();
+
+        // VR HUD
+        const vrHudCanvas = document.createElement('canvas');
+        vrHudCanvas.width = 256; vrHudCanvas.height = 256;
+        const vrHudCtx = vrHudCanvas.getContext('2d');
+        const vrHudTexture = new THREE.CanvasTexture(vrHudCanvas);
+        const vrHudMaterial = new THREE.SpriteMaterial({ map: vrHudTexture, depthTest: false, depthWrite: false });
+        const vrHudSprite = new THREE.Sprite(vrHudMaterial);
+        vrHudSprite.position.set(0.15, 0.15, -0.5); vrHudSprite.scale.set(0.15, 0.15, 1);
+
+        // Loaders
+        const plyLoader = new PLYLoader();
+        const objLoader = new OBJLoader();
+        let loadedCount = 0;
+        const totalFiles = 11;
+        const layerPromises = [];
+        
+        
+        layerPromises.push(
+            new Promise((resolve) => {
+                plyLoader.load('/files/570ced72/layer_1.ply', (geometry) => {
+                    const material = new THREE.PointsMaterial({
+                        size: pointSize,
+                        vertexColors: true,
+                        sizeAttenuation: true
+                    });
+                    
+                    const points = new THREE.Points(geometry, material);
+                    points.userData.layerIndex = 0;
+                    points.userData.amplitudeMin = 25.27;
+                    points.userData.amplitudeMax = 42.7846;
+                    
+                    pointCloudGroup.add(points);
+                    
+                    // FIXED: Assign directly to index to match the checkbox ID
+                    layers[0] = points; 
+                    
+                    loadedCount++;
+                    updateLoadingProgress((loadedCount / totalFiles) * 100, 'Loaded layer 1');
+                    resolve();
+                },
+                undefined,
+                (error) => {
+                    console.error('Error loading layer 1:', error);
+                    loadedCount++;
+                    resolve();
+                });
+            })
+        );
+
+        layerPromises.push(
+            new Promise((resolve) => {
+                plyLoader.load('/files/570ced72/layer_2.ply', (geometry) => {
+                    const material = new THREE.PointsMaterial({
+                        size: pointSize,
+                        vertexColors: true,
+                        sizeAttenuation: true
+                    });
+                    
+                    const points = new THREE.Points(geometry, material);
+                    points.userData.layerIndex = 1;
+                    points.userData.amplitudeMin = 42.7846;
+                    points.userData.amplitudeMax = 60.2992;
+                    
+                    pointCloudGroup.add(points);
+                    
+                    // FIXED: Assign directly to index to match the checkbox ID
+                    layers[1] = points; 
+                    
+                    loadedCount++;
+                    updateLoadingProgress((loadedCount / totalFiles) * 100, 'Loaded layer 2');
+                    resolve();
+                },
+                undefined,
+                (error) => {
+                    console.error('Error loading layer 2:', error);
+                    loadedCount++;
+                    resolve();
+                });
+            })
+        );
+
+        layerPromises.push(
+            new Promise((resolve) => {
+                plyLoader.load('/files/570ced72/layer_3.ply', (geometry) => {
+                    const material = new THREE.PointsMaterial({
+                        size: pointSize,
+                        vertexColors: true,
+                        sizeAttenuation: true
+                    });
+                    
+                    const points = new THREE.Points(geometry, material);
+                    points.userData.layerIndex = 2;
+                    points.userData.amplitudeMin = 60.2992;
+                    points.userData.amplitudeMax = 77.8138;
+                    
+                    pointCloudGroup.add(points);
+                    
+                    // FIXED: Assign directly to index to match the checkbox ID
+                    layers[2] = points; 
+                    
+                    loadedCount++;
+                    updateLoadingProgress((loadedCount / totalFiles) * 100, 'Loaded layer 3');
+                    resolve();
+                },
+                undefined,
+                (error) => {
+                    console.error('Error loading layer 3:', error);
+                    loadedCount++;
+                    resolve();
+                });
+            })
+        );
+
+        layerPromises.push(
+            new Promise((resolve) => {
+                plyLoader.load('/files/570ced72/layer_4.ply', (geometry) => {
+                    const material = new THREE.PointsMaterial({
+                        size: pointSize,
+                        vertexColors: true,
+                        sizeAttenuation: true
+                    });
+                    
+                    const points = new THREE.Points(geometry, material);
+                    points.userData.layerIndex = 3;
+                    points.userData.amplitudeMin = 77.8138;
+                    points.userData.amplitudeMax = 95.3284;
+                    
+                    pointCloudGroup.add(points);
+                    
+                    // FIXED: Assign directly to index to match the checkbox ID
+                    layers[3] = points; 
+                    
+                    loadedCount++;
+                    updateLoadingProgress((loadedCount / totalFiles) * 100, 'Loaded layer 4');
+                    resolve();
+                },
+                undefined,
+                (error) => {
+                    console.error('Error loading layer 4:', error);
+                    loadedCount++;
+                    resolve();
+                });
+            })
+        );
+
+        layerPromises.push(
+            new Promise((resolve) => {
+                plyLoader.load('/files/570ced72/layer_5.ply', (geometry) => {
+                    const material = new THREE.PointsMaterial({
+                        size: pointSize,
+                        vertexColors: true,
+                        sizeAttenuation: true
+                    });
+                    
+                    const points = new THREE.Points(geometry, material);
+                    points.userData.layerIndex = 4;
+                    points.userData.amplitudeMin = 95.3284;
+                    points.userData.amplitudeMax = 112.843;
+                    
+                    pointCloudGroup.add(points);
+                    
+                    // FIXED: Assign directly to index to match the checkbox ID
+                    layers[4] = points; 
+                    
+                    loadedCount++;
+                    updateLoadingProgress((loadedCount / totalFiles) * 100, 'Loaded layer 5');
+                    resolve();
+                },
+                undefined,
+                (error) => {
+                    console.error('Error loading layer 5:', error);
+                    loadedCount++;
+                    resolve();
+                });
+            })
+        );
+        
+        // MODIFIED LAYER LOADING LOGIC
+        // We need to make sure 'layers' array is populated correctly at specific indices
+        // The original loader pushed to array, here we ensure index assignment in the generated JS
+        // (Note: The Python generate_layer_loaders function should be fine, it adds to pointCloudGroup)
+        // But for the checklist to work, we need to map the loaded object to the layers array
+        
+        // Overwriting the array push in generated code logic:
+        // The generated code does: layers.push(points); 
+        // We will just let it push, but we know the order matches the file order.
+        
+        
+        objLoader.load('/files/570ced72/surface_amplitude.obj', (object) => {
+            object.traverse((child) => {
+                if (child.isMesh) {
+                    child.material = new THREE.MeshStandardMaterial({
+                        vertexColors: true, side: THREE.DoubleSide, transparent: true,
+                        opacity: surfaceOpacity, metalness: 0.1, roughness: 0.8
+                    });
+                    child.userData.isSurface = true; surfaces.push(child);
+                }
+            });
+            surfaceGroup.add(object);
+            console.log('Loaded amplitude surface');
+        }, undefined, (error) => { console.log('No amplitude surface found'); });
+        
+        
+            objLoader.load('/files/570ced72/slice_1.obj', (object) => {
+                object.traverse((child) => {
+                    if (child.isMesh) {
+                        child.material = new THREE.MeshStandardMaterial({
+                            vertexColors: true, side: THREE.DoubleSide, transparent: true,
+                            opacity: sliceOpacity, metalness: 0.1, roughness: 0.8
+                        });
+                        child.userData.isSlice = true; child.userData.sliceIndex = 0; slices.push(child);
+                    }
+                });
+                sliceGroup.add(object);
+                console.log('Loaded slice 1');
+            }, undefined, (error) => { console.log('Slice 1 not found'); });
+            
+            objLoader.load('/files/570ced72/slice_2.obj', (object) => {
+                object.traverse((child) => {
+                    if (child.isMesh) {
+                        child.material = new THREE.MeshStandardMaterial({
+                            vertexColors: true, side: THREE.DoubleSide, transparent: true,
+                            opacity: sliceOpacity, metalness: 0.1, roughness: 0.8
+                        });
+                        child.userData.isSlice = true; child.userData.sliceIndex = 1; slices.push(child);
+                    }
+                });
+                sliceGroup.add(object);
+                console.log('Loaded slice 2');
+            }, undefined, (error) => { console.log('Slice 2 not found'); });
+            
+            objLoader.load('/files/570ced72/slice_3.obj', (object) => {
+                object.traverse((child) => {
+                    if (child.isMesh) {
+                        child.material = new THREE.MeshStandardMaterial({
+                            vertexColors: true, side: THREE.DoubleSide, transparent: true,
+                            opacity: sliceOpacity, metalness: 0.1, roughness: 0.8
+                        });
+                        child.userData.isSlice = true; child.userData.sliceIndex = 2; slices.push(child);
+                    }
+                });
+                sliceGroup.add(object);
+                console.log('Loaded slice 3');
+            }, undefined, (error) => { console.log('Slice 3 not found'); });
+            
+            objLoader.load('/files/570ced72/slice_4.obj', (object) => {
+                object.traverse((child) => {
+                    if (child.isMesh) {
+                        child.material = new THREE.MeshStandardMaterial({
+                            vertexColors: true, side: THREE.DoubleSide, transparent: true,
+                            opacity: sliceOpacity, metalness: 0.1, roughness: 0.8
+                        });
+                        child.userData.isSlice = true; child.userData.sliceIndex = 3; slices.push(child);
+                    }
+                });
+                sliceGroup.add(object);
+                console.log('Loaded slice 4');
+            }, undefined, (error) => { console.log('Slice 4 not found'); });
+            
+            objLoader.load('/files/570ced72/slice_5.obj', (object) => {
+                object.traverse((child) => {
+                    if (child.isMesh) {
+                        child.material = new THREE.MeshStandardMaterial({
+                            vertexColors: true, side: THREE.DoubleSide, transparent: true,
+                            opacity: sliceOpacity, metalness: 0.1, roughness: 0.8
+                        });
+                        child.userData.isSlice = true; child.userData.sliceIndex = 4; slices.push(child);
+                    }
+                });
+                sliceGroup.add(object);
+                console.log('Loaded slice 5');
+            }, undefined, (error) => { console.log('Slice 5 not found'); });
+            
+        
+        
+        Promise.all(layerPromises).then(() => {
+            document.getElementById('loading').style.display = 'none';
+            debug('Ready');
+        });
+
+        // --- NEW CHECKLIST LOGIC ---
+        window.toggleLayer = function(index, isChecked) {
+            if (layers[index]) {
+                layers[index].visible = isChecked;
+            } else {
+                console.warn("Layer " + index + " not ready yet");
+            }
+        };
+
+        window.toggleAllLayers = function(visible) {
+            for(let i=0; i < 5; i++) {
+                if (layers[i]) {
+                    layers[i].visible = visible;
+                }
+                
+                const cb = document.getElementById('layer_cb_' + i);
+                if(cb) cb.checked = visible;
+            }
+            
+            // Update Toggle Master Checkbox State
+            const master = document.getElementById('showPoints');
+            if(master) master.checked = visible;
+        };
+
+        // Slider Listeners
+        document.getElementById('sizeSlider').addEventListener('input', (e) => {
+            pointSize = parseFloat(e.target.value);
+            document.getElementById('sizeValue').textContent = pointSize.toFixed(3);
+            layers.forEach(l => l.material.size = pointSize);
+        });
+        document.getElementById('scaleSlider').addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            document.getElementById('scaleValue').textContent = val.toFixed(1);
+            mainGroup.scale.setScalar(val);
+        });
+        document.getElementById('showPoints').addEventListener('change', (e) => pointCloudGroup.visible = e.target.checked);
+        document.getElementById('showGround').addEventListener('change', (e) => groundGroup.visible = e.target.checked);
+        document.getElementById('showAxes').addEventListener('change', (e) => axesGroup.visible = e.target.checked);
+        document.getElementById('surfaceOpacitySlider').addEventListener('input', (e) => {
+            surfaceOpacity = parseFloat(e.target.value);
+            document.getElementById('surfaceOpacityValue').textContent = surfaceOpacity;
+            surfaces.forEach(s => s.material.opacity = surfaceOpacity);
+        });
+        document.getElementById('sliceOpacitySlider').addEventListener('input', (e) => {
+            sliceOpacity = parseFloat(e.target.value);
+            document.getElementById('sliceOpacityValue').textContent = sliceOpacity;
+            slices.forEach(s => s.material.opacity = sliceOpacity);
+        });
+        document.getElementById('showSurface').addEventListener('change', (e) => surfaceGroup.visible = e.target.checked);
+        document.getElementById('showSlices').addEventListener('change', (e) => sliceGroup.visible = e.target.checked);
+        
+        // Pipe Scale Slider
+        const pipeScaleSlider = document.getElementById('pipeScaleSlider');
+        if (pipeScaleSlider) {
+            pipeScaleSlider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('pipeScaleValue').textContent = val.toFixed(1);
+                if (typeof pipeGroup !== 'undefined') {
+                    pipeGroup.scale.setScalar(val);
+                }
+            });
+        }
+        
+        // Pipe Position X
+        const pipePosXSlider = document.getElementById('pipePosXSlider');
+        if (pipePosXSlider) {
+            pipePosXSlider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('pipePosXValue').textContent = val.toFixed(1);
+                if (typeof pipeGroup !== 'undefined') pipeGroup.position.x = val;
+            });
+        }
+        
+        // Pipe Position Y
+        const pipePosYSlider = document.getElementById('pipePosYSlider');
+        if (pipePosYSlider) {
+            pipePosYSlider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('pipePosYSliderValue').textContent = val.toFixed(1);
+                if (typeof pipeGroup !== 'undefined') pipeGroup.position.y = val;
+            });
+        }
+        
+        // Pipe Position Z
+        const pipePosZSlider = document.getElementById('pipePosZSlider');
+        if (pipePosZSlider) {
+            pipePosZSlider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('pipePosZSliderValue').textContent = val.toFixed(1);
+                if (typeof pipeGroup !== 'undefined') pipeGroup.position.z = val;
+            });
+        }
+        
+        // Pipe Rotation Z (Heading in this coord system)
+        const pipeRotZSlider = document.getElementById('pipeRotZSlider');
+        if (pipeRotZSlider) {
+            pipeRotZSlider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                document.getElementById('pipeRotZSliderValue').textContent = val.toFixed(0);
+                if (typeof pipeGroup !== 'undefined') pipeGroup.rotation.z = val * Math.PI / 180;
+            });
+        }
+        
+        // Pipe Visibility Checkbox
+        const pipeCheckbox = document.getElementById('show3DPipe');
+        if (pipeCheckbox) {
+            pipeCheckbox.addEventListener('change', (e) => {
+                if (typeof pipeGroup !== 'undefined') {
+                    pipeGroup.visible = e.target.checked;
+                }
+            });
+        }
+
+        // VR Setup
+        const controllerModelFactory = new XRControllerModelFactory();
+        const cameraRig = new THREE.Group();
+        scene.add(cameraRig);
+        const controller0 = renderer.xr.getController(0);
+        const controller1 = renderer.xr.getController(1);
+        cameraRig.add(controller0); cameraRig.add(controller1);
+        [controller0, controller1].forEach(c => {
+            const grp = renderer.xr.getControllerGrip(c === controller0 ? 0 : 1);
+            grp.add(controllerModelFactory.createControllerModel(grp));
+            cameraRig.add(grp);
+            c.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-1)]), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 })));
+        });
+
+        // 6-DoF Interaction
+        const grabbingControllers = new Set();
+        const previousTransforms = new Map();
+        
+        function onSqueezeStart(event) {
+            const controller = event.target;
+            grabbingControllers.add(controller);
+            const controllerInv = controller.matrixWorld.clone().invert();
+            const relativeMatrix = new THREE.Matrix4().multiplyMatrices(controllerInv, mainGroup.matrixWorld);
+            previousTransforms.set(controller, {
+                relativeMatrix: relativeMatrix,
+                startDist: grabbingControllers.size === 2 ? controller0.position.distanceTo(controller1.position) : 0,
+                startScale: mainGroup.scale.x
+            });
+        }
+        
+        function onSqueezeEnd(event) {
+            const releasedController = event.target;
+            grabbingControllers.delete(releasedController);
+            previousTransforms.delete(releasedController);
+            if (grabbingControllers.size === 1) {
+                const remainingController = grabbingControllers.values().next().value;
+                const controllerInv = remainingController.matrixWorld.clone().invert();
+                const relativeMatrix = new THREE.Matrix4().multiplyMatrices(controllerInv, mainGroup.matrixWorld);
+                previousTransforms.set(remainingController, {
+                    relativeMatrix: relativeMatrix, startDist: 0, startScale: mainGroup.scale.x 
+                });
+            }
+        }
+        
+        controller0.addEventListener('squeezestart', onSqueezeStart);
+        controller0.addEventListener('squeezeend', onSqueezeEnd);
+        controller1.addEventListener('squeezestart', onSqueezeStart);
+        controller1.addEventListener('squeezeend', onSqueezeEnd);
+        
+        // CHANGED VR INTERACTION: Cycle Layers (Left Trigger)
+        let currentLayerIndex = -1; // -1: All, 0..N: Single, N+1: None
+        
+        controller0.addEventListener('selectstart', () => {
+            const layerCount = layers.length; // Max index + 1
+            if (layerCount === 0) return;
+            
+            currentLayerIndex++;
+            if (currentLayerIndex > layerCount) currentLayerIndex = -1;
+            
+            const masterCb = document.getElementById('showPoints');
+            
+            if (currentLayerIndex === -1) {
+                // SHOW ALL
+                pointCloudGroup.visible = true;
+                if(masterCb) masterCb.checked = true;
+                toggleAllLayers(true);
+                debug("Show All Layers");
+            } else if (currentLayerIndex === layerCount) {
+                // SHOW NONE
+                pointCloudGroup.visible = false;
+                if(masterCb) masterCb.checked = false;
+                debug("Hide All Layers");
+            } else {
+                // SHOW SINGLE
+                pointCloudGroup.visible = true;
+                if(masterCb) masterCb.checked = true;
+                
+                // Set only currentLayerIndex visible
+                layers.forEach((l, idx) => {
+                    const isTarget = (idx === currentLayerIndex);
+                    if(l) l.visible = isTarget;
+                    const lcb = document.getElementById('layer_cb_' + idx);
+                    if(lcb) lcb.checked = isTarget;
+                });
+                debug("Show Layer " + (currentLayerIndex + 1));
+            }
+        });
+        
+        // CHANGED VR INTERACTION: Toggle Pipe Model (Right Trigger)
+        controller1.addEventListener('selectstart', () => {
+            const cb = document.getElementById('show3DPipe');
+            if (cb) {
+                cb.checked = !cb.checked;
+                cb.dispatchEvent(new Event('change'));
+            }
+        });
+        
+    
+
+        // VR Button
+        const vrButton = document.getElementById('vr-button');
+        if ('xr' in navigator) {
+            navigator.xr.isSessionSupported('immersive-vr').then(ok => {
+                if (ok) {
+                    vrButton.disabled = false; vrButton.textContent = 'Enter VR';
+                    vrButton.onclick = async () => {
+                        const session = await navigator.xr.requestSession('immersive-vr', { optionalFeatures: ['local-floor', 'bounded-floor'] });
+                        renderer.xr.setSession(session);
+                        camera.add(vrHudSprite);
+                        vrButton.textContent = 'VR Active'; vrButton.disabled = true;
+                        session.addEventListener('end', () => { vrButton.textContent = 'Enter VR'; vrButton.disabled = false; camera.remove(vrHudSprite); });
+                    };
+                } else vrButton.textContent = 'VR Not Supported';
+            });
+        } else vrButton.textContent = 'WebXR Not Available';
+
+        // Render Loop
+        renderer.setAnimationLoop(() => {
+            controls.update();
+            if (grabbingControllers.size === 1) {
+                const controller = grabbingControllers.values().next().value;
+                const data = previousTransforms.get(controller);
+                if (data) {
+                    const newMatrix = controller.matrixWorld.clone().multiply(data.relativeMatrix);
+                    const pos = new THREE.Vector3(); const quat = new THREE.Quaternion(); const scale = new THREE.Vector3();
+                    newMatrix.decompose(pos, quat, scale);
+                    mainGroup.position.copy(pos); mainGroup.quaternion.copy(quat); mainGroup.scale.setScalar(data.startScale); 
+                }
+            } else if (grabbingControllers.size === 2) {
+                const dist = controller0.position.distanceTo(controller1.position);
+                const data0 = previousTransforms.get(controller0);
+                if (data0 && data0.startDist > 0) {
+                    const ratio = dist / data0.startDist;
+                    mainGroup.scale.setScalar(data0.startScale * ratio);
+                }
+            }
+            
+            let azimuth;
+            if (renderer.xr.isPresenting) {
+                const camVec = new THREE.Vector3(); camera.getWorldDirection(camVec);
+                azimuth = Math.atan2(camVec.x, camVec.z);
+                drawCompassOnContext(vrHudCtx, azimuth, 256); vrHudTexture.needsUpdate = true;
+            } else {
+                azimuth = controls.getAzimuthalAngle();
+                drawCompassOnContext(compassCtx, azimuth, 120);
+            }
+            
+            renderer.render(scene, camera);
+        });
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

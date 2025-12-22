@@ -1,0 +1,743 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPR VR Viewer - Upload</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        header {
+            background: #1a1a2e;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 2.5em;
+        }
+        header p {
+            color: #aaa;
+            margin: 10px 0 0;
+        }
+        .content {
+            display: flex;
+            min-height: 600px;
+        }
+        .upload-section {
+            flex: 1;
+            padding: 40px;
+            background: #f8f9fa;
+        }
+        .settings-section {
+            flex: 1;
+            padding: 40px;
+            background: white;
+            border-left: 1px solid #ddd;
+            overflow-y: auto;
+            max-height: 600px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+        input[type="file"] {
+            width: 100%;
+            padding: 15px;
+            border: 2px dashed #667eea;
+            border-radius: 5px;
+            background: white;
+            cursor: pointer;
+        }
+        input[type="number"], input[type="text"], select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+            width: 100%;
+            margin-top: 20px;
+        }
+        .btn:hover {
+            background: #5a67d8;
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status-area {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            display: none;
+        }
+        #progressBar {
+            width: 100%;
+            height: 20px;
+            background: #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        #progressFill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s;
+        }
+        .setting-category {
+            background: #f1f3f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .setting-category h3 {
+            margin-top: 0;
+            color: #495057;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 5px;
+        }
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .setting-label {
+            flex: 1;
+            font-size: 14px;
+        }
+        .setting-control {
+            flex: 1;
+        }
+        .small-input {
+            width: 80px;
+        }
+        #fileInfo {
+            background: #e7f3ff;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .completed-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .completed-actions .btn {
+            flex: 1;
+            margin-top: 0;
+        }
+        .btn-view {
+            background: #10b981;
+        }
+        .btn-view:hover {
+            background: #0da271;
+        }
+        .btn-download {
+            background: #3b82f6;
+        }
+        .btn-download:hover {
+            background: #2563eb;
+        }
+        .instructions {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 30px;
+        }
+        .instructions h3 {
+            margin-top: 0;
+            color: #856404;
+        }
+        .instructions ul {
+            padding-left: 20px;
+        }
+        .instructions li {
+            margin-bottom: 5px;
+        }
+        
+        /* Color palette preview */
+        .palette-preview {
+            display: flex;
+            height: 30px;
+            margin-top: 5px;
+            border-radius: 3px;
+            overflow: hidden;
+            border: 1px solid #ddd;
+        }
+        .palette-color {
+            flex: 1;
+            height: 100%;
+        }
+        .palette-info {
+            font-size: 11px;
+            color: #666;
+            margin-top: 2px;
+        }
+        
+        /* Palette grid */
+        .palette-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .palette-option {
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            padding: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .palette-option:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        .palette-option.selected {
+            border-color: #4CAF50;
+            background: #f0fff0;
+        }
+        .palette-name {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .palette-mini-preview {
+            display: flex;
+            height: 15px;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .palette-mini-color {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+<header>
+    <div style="display: flex; align-items: center; justify-content: center; gap: 20px; padding: 10px;">
+        <img src="/static/logo.jpeg" alt="GPR VR Viewer Logo" style="height: 70px; width: auto; border-radius: 5px;">
+        <div style="text-align: left;">
+            <h1 style="margin: 0; font-size: 2.2em;">GPR VR Viewer</h1>
+            <p style="margin: 5px 0 0; color: #aaa;">Upload GPR CSV data and generate interactive 3D VR visualizations</p>
+        </div>
+    </div>
+</header>
+        
+        <div class="content">
+            <div class="upload-section">
+                <h2>1. Upload CSV File</h2>
+                <div class="form-group">
+                    <label for="fileInput">GPR Data File (.csv)</label>
+                    <input type="file" id="fileInput" accept=".csv,.txt">
+                    <div id="fileInfo" style="display: none;"></div>
+                </div>
+                
+                <div class="form-group" style="border-top:1px dashed #ccc; padding-top:10px;">
+                    <label for="pipeInput">Optional: 3D Pipe Model (.ply)</label>
+                    <input type="file" id="pipeInput" accept=".ply">
+                </div>
+                
+                <div class="instructions">
+                    <h3>File Requirements:</h3>
+                    <ul>
+                        <li>CSV or text format</li>
+                        <li>Default column indices: X(0), Y(1), Z(7), Amplitude(8)</li>
+                        <li>Adjust indices in settings if needed</li>
+                        <li>Supports large files (up to 1GB)</li>
+                        <li>Auto-detects encoding (UTF-8, Latin-1, etc.)</li>
+                    </ul>
+                </div>
+                
+                <button class="btn" id="processBtn" onclick="processFile()" disabled>Process File</button>
+                
+                <div class="status-area" id="statusArea">
+                    <h3>Processing Status</h3>
+                    <div id="statusMessage">Waiting to start...</div>
+                    <div id="progressBar">
+                        <div id="progressFill"></div>
+                    </div>
+                    <div id="progressText">0%</div>
+                    
+                    <div id="completedActions" class="completed-actions" style="display: none;">
+                        <button class="btn btn-view" onclick="viewResult()">View in 3D</button>
+                        <button class="btn btn-download" onclick="downloadResult()">Download All Files</button>
+                        <button class="btn" onclick="newFile()" style="background: #6c757d;">Process Another</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h2>2. Processing Settings</h2>
+                
+                <div class="setting-category">
+                    <h3>Data Columns (0-based indices)</h3>
+                    <div class="setting-row">
+                        <div class="setting-label">X Column:</div>
+                        <div class="setting-control">
+                            <input type="number" id="colIdxX" value="{{ default_settings.col_idx_x }}" min="0" max="100" class="small-input">
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-label">Y Column:</div>
+                        <div class="setting-control">
+                            <input type="number" id="colIdxY" value="{{ default_settings.col_idx_y }}" min="0" max="100" class="small-input">
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-label">Z (Depth) Column:</div>
+                        <div class="setting-control">
+                            <input type="number" id="colIdxZ" value="{{ default_settings.col_idx_z }}" min="0" max="100" class="small-input">
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-label">Amplitude Column:</div>
+                        <div class="setting-control">
+                            <input type="number" id="colIdxAmplitude" value="{{ default_settings.col_idx_amplitude }}" min="0" max="100" class="small-input">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="setting-category">
+                    <h3>Color Palette Selection</h3>
+                    <div class="setting-row">
+                        <div class="setting-label">Selected Palette:</div>
+                        <div class="setting-control">
+                            <select id="colorPaletteSelect">
+                                {% for palette in color_palettes %}
+                                <option value="{{ palette }}" {% if palette == default_settings.color_palette %}selected{% endif %}>{{ palette }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="palettePreviewContainer">
+                        <div class="palette-preview" id="palettePreview"></div>
+                        <div class="palette-info" id="paletteInfo">Click on palette below for preview</div>
+                    </div>
+                    
+                    <div class="palette-grid" id="paletteGrid">
+                        {% for palette in color_palettes %}
+                        <div class="palette-option {% if palette == default_settings.color_palette %}selected{% endif %}" 
+                             data-palette="{{ palette }}"
+                             onclick="selectPalette('{{ palette }}')">
+                            <div class="palette-name">{{ palette }}</div>
+                            <div class="palette-mini-preview" id="miniPreview{{ palette }}"></div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="help-text">
+                        <strong>Recommended:</strong><br>
+                        • <strong>Viridis/Plasma/Inferno/Magma:</strong> Scientific, colorblind-friendly<br>
+                        • <strong>Seismic:</strong> Traditional geophysics (blue-white-red)<br>
+                        • <strong>RdBu/Spectral:</strong> Diverging data (high contrast)<br>
+                        • <strong>Rainbow:</strong> Classic but not colorblind-friendly<br>
+                        • <strong>Grayscale:</strong> For printing or monochrome displays
+                    </div>
+                </div>
+                
+                <div class="setting-category">
+                    <h3>Processing Settings</h3>
+                    <div class="setting-row">
+                        <div class="setting-label">Amplitude Percentile:</div>
+                        <div class="setting-control">
+                            <input type="number" id="thresholdPercentile" value="{{ default_settings.threshold_percentile }}" min="0.5" max="1" step="0.01" class="small-input">
+                            <div class="help-text">Higher = fewer but stronger points</div>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-label">Amplitude Layers:</div>
+                        <div class="setting-control">
+                            <input type="number" id="isoBins" value="{{ default_settings.iso_bins }}" min="1" max="10" class="small-input">
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-label">Max Points per Layer:</div>
+                        <div class="setting-control">
+                            <input type="number" id="maxPointsPerLayer" value="{{ default_settings.max_points_per_layer }}" min="1000" max="1000000" step="1000" class="small-input">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="setting-category">
+                    <h3>Surface Generation</h3>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="generateSurface" checked>
+                        <label for="generateSurface">Generate 3D Surfaces</label>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-label">Surface Resolution:</div>
+                        <div class="setting-control">
+                            <input type="number" id="surfaceResolution" value="{{ default_settings.surface_resolution }}" min="10" max="200" class="small-input">
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-label">Depth Slices:</div>
+                        <div class="setting-control">
+                            <input type="number" id="surfaceDepthSlices" value="{{ default_settings.surface_depth_slices }}" min="0" max="20" class="small-input">
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-label">Surface Opacity:</div>
+                        <div class="setting-control">
+                            <input type="number" id="surfaceOpacity" value="{{ default_settings.surface_opacity }}" min="0.1" max="1" step="0.1" class="small-input">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="setting-category">
+                    <h3>VR Settings</h3>
+                    <div class="setting-row">
+                        <div class="setting-label">Point Size:</div>
+                        <div class="setting-control">
+                            <input type="number" id="vrPointSize" value="{{ default_settings.vr_point_size }}" min="0.001" max="0.1" step="0.001" class="small-input">
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-control">
+                            <input type="number" id="depthOffsetPerLevel" value="{{ default_settings.depth_offset_per_level }}" min="0" max="0.5" step="0.01" class="small-input">
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-label">Font Size Multiplier:</div>
+                        <div class="setting-control">
+                            <input type="number" id="fontSizeMultiplier" value="{{ default_settings.font_size_multiplier }}" min="0.5" max="3" step="0.1" class="small-input">
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-label">Font Family:</div>
+                        <div class="setting-control">
+                            <select id="fontFamily">
+                                <option value="Arial" {% if default_settings.font_family == 'Arial' %}selected{% endif %}>Arial</option>
+                                <option value="Verdana" {% if default_settings.font_family == 'Verdana' %}selected{% endif %}>Verdana</option>
+                                <option value="Helvetica" {% if default_settings.font_family == 'Helvetica' %}selected{% endif %}>Helvetica</option>
+                                <option value="Times New Roman" {% if default_settings.font_family == 'Times New Roman' %}selected{% endif %}>Times New Roman</option>
+                                <option value="Courier New" {% if default_settings.font_family == 'Courier New' %}selected{% endif %}>Courier New</option>
+                                <option value="Georgia" {% if default_settings.font_family == 'Georgia' %}selected{% endif %}>Georgia</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="setting-category">
+                    <h3>Coordinate Settings</h3>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="invertDepth" checked>
+                        <label for="invertDepth">Invert Depth (positive down)</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="centerCoordinates" checked>
+                        <label for="centerCoordinates">Center Coordinates</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Define color palettes (simplified versions)
+        const COLOR_PALETTES = {
+            'Viridis': ['#440154', '#482878', '#3e4989', '#31688e', '#26828e', '#1f9e89', '#35b779', '#6ece58', '#b5de2b', '#fde725'],
+            'Plasma': ['#0d0887', '#46039f', '#7201a8', '#9c179e', '#bd3786', '#d8576b', '#ed7953', '#fb9f3a', '#fdca26', '#f0f921'],
+            'Inferno': ['#000004', '#1b0c41', '#4a0c6b', '#781c6d', '#a52c60', '#cf4446', '#ed6925', '#fb9b06', '#f7d03c', '#fcffa4'],
+            'Magma': ['#000004', '#180f3d', '#440f76', '#721f81', '#9e2f7f', '#cd4071', '#f1605d', '#fd9668', '#feca8d', '#fcfdbf'],
+            'Cividis': ['#00204d', '#00336f', '#2f4880', '#575d8e', '#77729c', '#9589a9', '#b1a2b6', '#cbbcc2', '#e3d7cf', '#fcf5d6'],
+            'Seismic': ['#0000ff', '#4040ff', '#8080ff', '#c0c0ff', '#ffffff', '#ffc0c0', '#ff8080', '#ff4040', '#ff0000'],
+            'Rainbow': ['#9400d3', '#4b0082', '#0000ff', '#00ff00', '#ffff00', '#ff7f00', '#ff0000'],
+            'Standard': ['#ff0000', '#ffa500', '#ffff00', '#00ff00', '#0000ff'],
+            'RdBu': ['#67001f', '#b2182b', '#d6604d', '#f4a582', '#fddbc7', '#f7f7f7', '#d1e5f0', '#92c5de', '#4393c3', '#2166ac', '#053061'],
+            'Spectral': ['#9e0142', '#d53e4f', '#f46d43', '#fdae61', '#fee08b', '#ffffbf', '#e6f598', '#abdda4', '#66c2a5', '#3288bd', '#5e4fa2'],
+            'Blues': ['#f7fbff', '#deebf7', '#c6dbef', '#9ecae1', '#6baed6', '#4292c6', '#2171b5', '#08519c', '#08306b'],
+            'Greens': ['#f7fcf5', '#e5f5e0', '#c7e9c0', '#a1d99b', '#74c476', '#41ab5d', '#238b45', '#006d2c', '#00441b'],
+            'Oranges': ['#fff5eb', '#fee6ce', '#fdd0a2', '#fdae6b', '#fd8d3c', '#f16913', '#d94801', '#a63603', '#7f2704'],
+            'Turbo': ['#23171b', '#453a79', '#6575b2', '#84b2d6', '#a6edd8', '#ccf7b0', '#f5f18c', '#ffc35e', '#ff913e', '#ff5b3a', '#e62e46'],
+            'Thermal': ['#000000', '#400000', '#800000', '#c04000', '#ff8000', '#ffc040', '#ffff80', '#ffffff'],
+            'Ocean': ['#000080', '#0000ff', '#0080ff', '#00ffff', '#80ffff', '#ffffff'],
+            'Grayscale': ['#000000', '#404040', '#808080', '#c0c0c0', '#ffffff'],
+            'Geology': ['#8b4513', '#a0522d', '#cd853f', '#deb887', '#f5deb3', '#d2b48c', '#a52a2a', '#b22222'],
+            'Earth': ['#003865', '#005c87', '#008095', '#00a48f', '#55bc7c', '#aad469', '#ffeb56', '#ffbd2e'],
+            'HighContrast': ['#e63946', '#f18701', '#ffc857', '#a8dadc', '#457b9d', '#1d3557']
+        };
+        
+        let currentJobId = null;
+        let checkInterval = null;
+        let selectedPalette = "{{ default_settings.color_palette }}";
+        
+        // Initialize palette previews
+        function initPalettePreviews() {
+            // Update main preview
+            updatePalettePreview(selectedPalette);
+            
+            // Create mini previews for all palettes
+            for (const paletteName in COLOR_PALETTES) {
+                const miniPreview = document.getElementById('miniPreview' + paletteName);
+                if (miniPreview) {
+                    const colors = COLOR_PALETTES[paletteName];
+                    miniPreview.innerHTML = '';
+                    colors.forEach(color => {
+                        const div = document.createElement('div');
+                        div.className = 'palette-mini-color';
+                        div.style.backgroundColor = color;
+                        miniPreview.appendChild(div);
+                    });
+                }
+            }
+            
+            // Set selected palette in dropdown
+            document.getElementById('colorPaletteSelect').value = selectedPalette;
+        }
+        
+        function updatePalettePreview(paletteName) {
+            const palettePreview = document.getElementById('palettePreview');
+            const paletteInfo = document.getElementById('paletteInfo');
+            const colors = COLOR_PALETTES[paletteName] || COLOR_PALETTES['Viridis'];
+            
+            palettePreview.innerHTML = '';
+            colors.forEach(color => {
+                const div = document.createElement('div');
+                div.className = 'palette-color';
+                div.style.backgroundColor = color;
+                palettePreview.appendChild(div);
+            });
+            
+            paletteInfo.textContent = `${paletteName} palette (${colors.length} colors)`;
+            
+            // Update selection state
+            document.querySelectorAll('.palette-option').forEach(option => {
+                option.classList.remove('selected');
+                if (option.dataset.palette === paletteName) {
+                    option.classList.add('selected');
+                }
+            });
+            
+            // Update dropdown
+            document.getElementById('colorPaletteSelect').value = paletteName;
+            
+            selectedPalette = paletteName;
+        }
+        
+        function selectPalette(paletteName) {
+            updatePalettePreview(paletteName);
+        }
+        
+        document.getElementById('colorPaletteSelect').addEventListener('change', function(e) {
+            selectPalette(e.target.value);
+        });
+        
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                document.getElementById('fileInfo').style.display = 'block';
+                document.getElementById('fileInfo').innerHTML = `
+                    <strong>Selected:</strong> ${file.name}<br>
+                    <strong>Size:</strong> ${(file.size / 1024 / 1024).toFixed(2)} MB
+                `;
+                document.getElementById('processBtn').disabled = false;
+            }
+        });
+        
+        function processFile() {
+            const fileInput = document.getElementById('fileInput');
+            if (!fileInput.files[0]) {
+                alert('Please select a file first');
+                return;
+            }
+            
+            // Disable button and show status
+            document.getElementById('processBtn').disabled = true;
+            document.getElementById('statusArea').style.display = 'block';
+            document.getElementById('statusMessage').textContent = 'Uploading file...';
+            
+            // Create FormData
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            const pipeInput = document.getElementById('pipeInput');
+            if(pipeInput.files.length > 0) {
+                formData.append('pipe_file', pipeInput.files[0]);
+            }
+            
+            // Add all settings to FormData
+            const settings = {
+                'col_idx_x': document.getElementById('colIdxX').value,
+                'col_idx_y': document.getElementById('colIdxY').value,
+                'col_idx_z': document.getElementById('colIdxZ').value,
+                'col_idx_amplitude': document.getElementById('colIdxAmplitude').value,
+                'threshold_percentile': document.getElementById('thresholdPercentile').value,
+                'iso_bins': document.getElementById('isoBins').value,
+                'max_points_per_layer': document.getElementById('maxPointsPerLayer').value,
+                'generate_surface': document.getElementById('generateSurface').checked,
+                'surface_resolution': document.getElementById('surfaceResolution').value,
+                'surface_depth_slices': document.getElementById('surfaceDepthSlices').value,
+                'surface_opacity': document.getElementById('surfaceOpacity').value,
+                'vr_point_size': document.getElementById('vrPointSize').value,
+                'depth_offset_per_level': document.getElementById('depthOffsetPerLevel').value,
+                'invert_depth': document.getElementById('invertDepth').checked,
+                'center_coordinates': document.getElementById('centerCoordinates').checked,
+                'generate_amplitude_surface': true,
+                'color_palette': selectedPalette,
+                'font_size_multiplier': document.getElementById('fontSizeMultiplier').value,
+                'font_family': document.getElementById('fontFamily').value
+            };
+            
+            for (const key in settings) {
+                formData.append(key, settings[key]);
+            }
+            
+            // Upload file
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    document.getElementById('processBtn').disabled = false;
+                    return;
+                }
+                
+                currentJobId = data.job_id;
+                document.getElementById('statusMessage').textContent = 'File uploaded, processing...';
+                
+                // Start checking status
+                checkInterval = setInterval(checkStatus, 2000);
+            })
+            .catch(error => {
+                alert('Upload failed: ' + error);
+                document.getElementById('processBtn').disabled = false;
+            });
+        }
+        
+        function checkStatus() {
+            if (!currentJobId) return;
+            
+            fetch(`/status/${currentJobId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        clearInterval(checkInterval);
+                        document.getElementById('statusMessage').textContent = 'Error: ' + data.error;
+                        document.getElementById('processBtn').disabled = false;
+                        return;
+                    }
+                    
+                    document.getElementById('statusMessage').textContent = data.message;
+                    
+                    // Update progress based on status
+                    let progress = 0;
+                    if (data.status === 'processing') {
+                        progress = 50;
+                    } else if (data.status === 'completed') {
+                        progress = 100;
+                        clearInterval(checkInterval);
+                        document.getElementById('progressText').textContent = '100% - Complete!';
+                        document.getElementById('completedActions').style.display = 'flex';
+                    } else if (data.status === 'error') {
+                        progress = 0;
+                        clearInterval(checkInterval);
+                        document.getElementById('progressText').textContent = 'Error occurred';
+                        document.getElementById('processBtn').disabled = false;
+                    } else if (data.status === 'pending') {
+                        progress = 10;
+                    }
+                    
+                    document.getElementById('progressFill').style.width = progress + '%';
+                    document.getElementById('progressText').textContent = progress + '%';
+                })
+                .catch(error => {
+                    console.error('Status check failed:', error);
+                });
+        }
+        
+        function viewResult() {
+            if (currentJobId) {
+                window.open(`/view/${currentJobId}`, '_blank');
+            }
+        }
+        
+        function downloadResult() {
+            if (currentJobId) {
+                window.location.href = `/download/${currentJobId}`;
+            }
+        }
+        
+        function newFile() {
+            // Reset form
+            document.getElementById('fileInput').value = '';
+            document.getElementById('fileInfo').style.display = 'none';
+            document.getElementById('fileInfo').innerHTML = '';
+            document.getElementById('processBtn').disabled = true;
+            document.getElementById('statusArea').style.display = 'none';
+            document.getElementById('completedActions').style.display = 'none';
+            document.getElementById('progressFill').style.width = '0%';
+            document.getElementById('progressText').textContent = '0%';
+            
+            // Clean up old job
+            if (currentJobId) {
+                fetch(`/cleanup/${currentJobId}`);
+                currentJobId = null;
+            }
+            
+            if (checkInterval) {
+                clearInterval(checkInterval);
+                checkInterval = null;
+            }
+        }
+        
+        // Initialize on load
+        window.onload = function() {
+            initPalettePreviews();
+        };
+    </script>
+</body>
+</html>

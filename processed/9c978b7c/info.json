@@ -1,0 +1,40 @@
+{
+  "original_filename": "sample_pipe_1.csv",
+  "total_points": 12110,
+  "layers": 5,
+  "has_surface": true,
+  "num_slices": 5,
+  "data_bounds": {
+    "x_min": -9.12,
+    "x_max": 9.120000000000001,
+    "y_min": -9.280000000000001,
+    "y_max": 7.519999999999998,
+    "z_min": -4.455,
+    "z_max": -0.495
+  },
+  "settings": {
+    "input_file": "",
+    "base_output_name": "gpr_iso",
+    "use_column_indices": true,
+    "col_idx_x": 0,
+    "col_idx_y": 1,
+    "col_idx_z": 7,
+    "col_idx_amplitude": 8,
+    "threshold_percentile": 0.95,
+    "iso_bins": 5,
+    "depth_offset_per_level": 0.05,
+    "vr_point_size": 0.015,
+    "font_size_multiplier": 1.0,
+    "font_family": "Arial",
+    "invert_depth": true,
+    "center_coordinates": true,
+    "generate_surface": true,
+    "surface_resolution": 100,
+    "surface_depth_slices": 5,
+    "surface_opacity": 0.6,
+    "generate_amplitude_surface": true,
+    "max_points_per_layer": 500000,
+    "color_palette": "Viridis",
+    "pipe_filename": "3D_PIPE2.ply"
+  }
+}

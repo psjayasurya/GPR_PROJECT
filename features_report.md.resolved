@@ -1,0 +1,39 @@
+# GPR VR Explorer: Feature Report
+
+The **GPR VR Explorer** is a specialized web-based application designed for the visualization and analysis of Ground Penetrating Radar (GPR) data. It transforms raw geophysical CSV data into immersive 3D/VR environments.
+
+## 🚀 Core Functionalities
+
+### 1. Data Processing & Management
+*   **Large Dataset Support**: Efficiently handles CSV/text files up to **1GB**, utilizing binary processing techniques.
+*   **Multi-threaded Execution**: Processing happens in the background, allowing users to track progress in real-time without freezing the UI.
+*   **Flexible Data Mapping**: Custom column indices for X, Y, Z, and Amplitude, making it compatible with various GPR device outputs.
+*   **Persistent Storage**: Organized job-based storage for uploads and processed results, with integrated cleanup and ZIP download capabilities.
+
+### 2. Advanced Filtering & Analysis
+*   **Amplitude Percentile Filtering**: Enables users to filter out noise and focus on the most significant subsurface reflections.
+*   **ISO-Level Layering**: Automatically segments data into discrete amplitude ranges (bins), allowing for detailed layer-by-layer inspection.
+*   **Horizontal Depth Slices**: Generates cross-sectional slices at various depths to visualize subsurface structures horizontally.
+*   **Surface Mesh Generation**: Creates interpolated 3D surfaces based on peak amplitude depths to map continuous soil or utility boundaries.
+
+### 3. Immersive VR Visualization
+*   **WebXR Integration**: Fully compatible with VR headsets (like Meta Quest) for true 6-DoF exploration of subsurface data.
+*   **3D Point Cloud Rendering**: Uses high-performance Three.js/PLY vertex rendering to display millions of data points smoothly.
+*   **Interactive Control Panel**:
+    *   **Layer Visibility**: Toggle individual amplitude ranges on/off via a checklist.
+    *   **Visual Tuning**: Real-time adjustment of point size, surface opacity, and slice transparency.
+    *   **Scale & Position**: Dynamic scaling of the entire model to fit the user's workspace.
+*   **3D Asset Integration**: Supports overlaying external 3D pipe models (.ply) with manual alignment tools (Scale, Position, Rotation) to compare GPR findings with known utility maps.
+
+### 4. Scientific Aesthetics
+*   **20+ Professional Color Palettes**: Includes perceptually uniform palettes like **Viridis, Plasma, and Inferno** for accurate data interpretation, plus traditional **Seismic** and **Geological** themes.
+*   **Visual Aids**: Built-in 3D axes, ground guides, and a dynamic compass UI for spatial orientation.
+*   **Custom Legend**: Generates a dynamic amplitude-to-color legend based on the current data range and selected palette.
+
+---
+
+## 🛠️ Technical Stack
+*   **Backend**: Python (Flask)
+*   **Data Science**: NumPy, Pandas, Scipy (ndimage, griddata)
+*   **Frontend Rendering**: Three.js, WebGL, WebXR
+*   **3D Formats**: PLY (Point Clouds), OBJ (Surfaces/Meshes)
