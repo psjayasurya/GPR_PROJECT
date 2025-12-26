@@ -507,7 +507,7 @@ def create_vr_viewer(ply_files, layer_info, legend_info, output_dir, settings, d
     ground_size = max(x_len, y_len) * 3
     if ground_size < 50: ground_size = 50
 
-    html_content = f'''<!DOCTYPE html>
+    html_content1 = f'''<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -626,9 +626,16 @@ def create_vr_viewer(ply_files, layer_info, legend_info, output_dir, settings, d
             border-bottom: 1px solid #555; padding-bottom: 5px;
             color: #ddd; text-align: center;
         }}
-        .legend-item {{ display: flex; align-items: center; margin-bottom: 4px; }}
-        .legend-color {{ width: 14px; height: 14px; margin-right: 8px; border: 1px solid #555; border-radius: 2px; }}
-        .legend-label {{ color: #ccc; }}
+        /* Globe Overlay */
+        #globe-overlay {{
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 2000; display: none;
+        }}
+        #globe-stats {{
+            position: absolute; bottom: 40px; width: 100%; text-align: center;
+            color: #4CAF50; font-family: monospace; font-size: 18px; text-shadow: 0 0 10px #000;
+            pointer-events: none;
+        }}
     </style>
 </head>
 <body>
@@ -646,6 +653,11 @@ def create_vr_viewer(ply_files, layer_info, legend_info, output_dir, settings, d
         <canvas id="compassCanvas" width="120" height="120"></canvas>
     </div>
     
+    <div id="globe-overlay">
+        <div id="globe-container" style="width: 100%; height: 100%;"></div>
+        <div id="globe-stats">NAVIGATING TO COORDINATES...</div>
+    </div>
+
     <div id="loading">
         <div id="loading-text">Loading GPR Data...</div>
         <div id="loading-progress"><div id="loading-bar"></div></div>
@@ -797,13 +809,13 @@ def create_vr_viewer(ply_files, layer_info, legend_info, output_dir, settings, d
                 <input type="range" id="pipeScaleSlider" min="0.1" max="10" step="0.1" value="1.0">
                 
                 <div class="slider-label"><span>Pipe Pos X:</span><span id="pipePosXValue">0</span></div>
-                <input type="range" id="pipePosXSlider" min="-50" max="50" step="0.5" value="0">
+                <input type="range" id="pipePosXSlider" min="-50" max="50" step="0.1" value="0">
                 
                 <div class="slider-label"><span>Pipe Pos Y:</span><span id="pipePosYSliderValue">0</span></div>
-                <input type="range" id="pipePosYSlider" min="-50" max="50" step="0.5" value="0">
+                <input type="range" id="pipePosYSlider" min="-50" max="50" step="0.1" value="0">
                 
                 <div class="slider-label"><span>Pipe Pos Z:</span><span id="pipePosZSliderValue">0</span></div>
-                <input type="range" id="pipePosZSlider" min="-20" max="20" step="0.5" value="0">
+                <input type="range" id="pipePosZSlider" min="-20" max="20" step="0.1" value="0">
                 
                 <div class="slider-label"><span>Pipe Rot Z:</span><span id="pipeRotZSliderValue">0</span></div>
                 <input type="range" id="pipeRotZSlider" min="0" max="360" step="1" value="0">
@@ -1400,9 +1412,121 @@ def create_vr_viewer(ply_files, layer_info, legend_info, output_dir, settings, d
             geoOrigin = {{ lat, lon, alt: isNaN(alt) ? 0 : alt }};
             debug(`Geo-Reference Anchor Set: ${{geoOrigin.lat}}, ${{geoOrigin.lon}}`);
             
+            // Run Globe Animation
+            runGlobeAnimation(lat, lon);
+            
             // Trigger Map Update
             updateMapTexture();
         }};
+        
+        let globeScene, globeCamera, globeRenderer, globeSphere;
+        function initGlobe() {{
+            const container = document.getElementById('globe-container');
+            globeScene = new THREE.Scene();
+            globeCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            globeRenderer = new THREE.WebGLRenderer({{ antialias: true }});
+            globeRenderer.setSize(window.innerWidth, window.innerHeight);
+            globeRenderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(globeRenderer.domElement);
+            
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            globeScene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(5, 3, 5);
+            globeScene.add(directionalLight);
+            
+            const geometry = new THREE.SphereGeometry(2, 64, 64);
+            const tex = new THREE.TextureLoader().load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg');
+            const material = new THREE.MeshPhongMaterial({{ 
+                map: tex,
+                specular: new THREE.Color('grey'),
+                shininess: 10
+            }});
+            globeSphere = new THREE.Mesh(geometry, material);
+            globeScene.add(globeSphere);
+            
+            // Starfield
+            const starGeo = new THREE.BufferGeometry();
+            const starPoints = [];
+            for(let i=0; i<5000; i++) {{
+                starPoints.push(THREE.MathUtils.randFloatSpread(100), THREE.MathUtils.randFloatSpread(100), THREE.MathUtils.randFloatSpread(100));
+            }}
+            starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPoints, 3));
+            const starMat = new THREE.PointsMaterial({{ color: 0xffffff, size: 0.1 }});
+            globeScene.add(new THREE.Points(starGeo, starMat));
+        }}
+
+        function runGlobeAnimation(targetLat, targetLon) {{
+            if (!globeScene) initGlobe();
+            
+            const overlay = document.getElementById('globe-overlay');
+            const stats = document.getElementById('globe-stats');
+            overlay.style.display = 'block';
+            overlay.style.opacity = 0;
+            
+            let opacity = 0;
+            const fadeIn = setInterval(() => {{
+                opacity += 0.05;
+                overlay.style.opacity = opacity;
+                if(opacity >= 1) clearInterval(fadeIn);
+            }}, 30);
+            
+            // Set initial rotation (Home)
+            globeSphere.rotation.y = 0;
+            globeCamera.position.set(0, 0, 10);
+            
+            // Target rotation
+            // 0,0 is at center of texture. Longitude shifts Y rotation. Latitude shifts X rotation.
+            const targetRotY = (targetLon + 180) * Math.PI / 180;
+            const targetRotX = (targetLat) * Math.PI / 180;
+            
+            let startTime = Date.now();
+            const duration = 5000; // 5 seconds
+            
+            function animateGlobe() {{
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const ease = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+                
+                globeSphere.rotation.y = ease * targetRotY;
+                globeSphere.rotation.x = -ease * targetRotX;
+                
+                // Zooming in
+                const dist = 10 - (ease * 7.5); // Zoom from 10 to 2.5
+                globeCamera.position.z = dist;
+                
+                stats.textContent = `TARGETING: ${{targetLat.toFixed(4)}}, ${{targetLon.toFixed(4)}} | DIST: ${{dist.toFixed(1)}}k km`;
+                
+                globeRenderer.render(globeScene, globeCamera);
+                
+                if(progress < 1) {{
+                    requestAnimationFrame(animateGlobe);
+                }} else {{
+                    // Finish animation
+                    setTimeout(() => {{
+                        const fadeOut = setInterval(() => {{
+                            opacity -= 0.05;
+                            overlay.style.opacity = opacity;
+                            if(opacity <= 0) {{
+                                clearInterval(fadeOut);
+                                overlay.style.display = 'none';
+                                debug("Globe transition complete");
+                                
+                                // NEW: Reset main controls/camera to see the map
+                                if(controls) {{
+                                    controls.reset();
+                                    camera.position.set(0, 50, 50);
+                                    controls.target.set(0, 0, 0);
+                                    controls.update();
+                                }}
+                            }}
+                        }}, 30);
+                    }}, 1000);
+                }}
+            }}
+            
+            requestAnimationFrame(animateGlobe);
+        }}
 
         window.updateMapTexture = function() {{
             const type = document.getElementById('mapType').value;
@@ -1697,7 +1821,7 @@ def create_vr_viewer(ply_files, layer_info, legend_info, output_dir, settings, d
 </html>'''
     
     with open(os.path.join(output_dir, 'index.html'), 'w', encoding='utf-8') as f:
-        f.write(html_content)
+        f.write(html_content1)
 
 def process_gpr_data(job_id, filepath, settings, original_filename):
     """Process GPR data in a separate thread"""
